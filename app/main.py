@@ -10,3 +10,7 @@ app.include_router(details.router)
 @app.on_event("startup")
 async def startup_event():
     start_scheduler()
+
+@app.get("/")
+def home():
+    return {"status": "running"}
