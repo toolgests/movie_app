@@ -60,10 +60,19 @@ async def refresh_movies_cache():
     print("✅ Cache updated!")
 
 
+# def start_scheduler():
+#     scheduler = AsyncIOScheduler()
+
+#     # ⏰ every 42 hours
+#     scheduler.add_job(refresh_movies_cache, "interval", hours=42)
+
+#     scheduler.start()
 def start_scheduler():
     scheduler = AsyncIOScheduler()
 
-    # ⏰ every 42 hours
     scheduler.add_job(refresh_movies_cache, "interval", hours=42)
 
     scheduler.start()
+
+    # ✅ RUN IMMEDIATELY
+    asyncio.create_task(refresh_movies_cache())
