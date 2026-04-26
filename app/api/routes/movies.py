@@ -110,6 +110,52 @@ async def get_movies():
 #         "total_movies": len(all_movies),
 #         "results": all_movies
 #     }
+# @router.get("/homepage")
+# async def homepage():
+
+#     cached = get_cache("movies_home")
+
+#     if not cached:
+#         return {"error": "No cached data found"}
+
+#     # 🔥 FIX HERE
+#     if isinstance(cached, str):
+#         data = json.loads(cached)
+#     else:
+#         data = cached
+
+#     movies = data.get("results", [])
+
+#     # 🔝 Top 10 Today
+#     top_today = sorted(movies, key=lambda x: x.get("popularity", 0), reverse=True)[:10]
+
+#     # 🔥 Hot
+#     hot_now = sorted(
+#         movies,
+#         key=lambda x: (x.get("vote_average", 0), x.get("vote_count", 0)),
+#         reverse=True
+#     )[:10]
+
+#     # ✨ Fresh
+#     from datetime import datetime
+
+#     def parse_date(movie):
+#         try:
+#             return datetime.strptime(movie.get("release_date", "1900-01-01"), "%Y-%m-%d")
+#         except:
+#             return datetime(1900, 1, 1)
+
+#     fresh = sorted(movies, key=parse_date, reverse=True)[:10]
+
+#     return {
+#         "source": "cache_only",
+#         "data": {
+#             "top_10_today": top_today,
+#             "hot_right_now": hot_now,
+#             "fresh_releases": fresh
+#         }
+#     }
+
 @router.get("/homepage")
 async def homepage():
 
@@ -118,7 +164,6 @@ async def homepage():
     if not cached:
         return {"error": "No cached data found"}
 
-    # 🔥 FIX HERE
     if isinstance(cached, str):
         data = json.loads(cached)
     else:
@@ -126,15 +171,25 @@ async def homepage():
 
     movies = data.get("results", [])
 
+    used_ids = set()
+
     # 🔝 Top 10 Today
-    top_today = sorted(movies, key=lambda x: x.get("popularity", 0), reverse=True)[:10]
+    top_today = sorted(
+        [m for m in movies if m.get("id") not in used_ids],
+        key=lambda x: x.get("popularity", 0),
+        reverse=True
+    )[:10]
+
+    used_ids.update(m.get("id") for m in top_today)
 
     # 🔥 Hot
     hot_now = sorted(
-        movies,
+        [m for m in movies if m.get("id") not in used_ids],
         key=lambda x: (x.get("vote_average", 0), x.get("vote_count", 0)),
         reverse=True
     )[:10]
+
+    used_ids.update(m.get("id") for m in hot_now)
 
     # ✨ Fresh
     from datetime import datetime
@@ -145,17 +200,30 @@ async def homepage():
         except:
             return datetime(1900, 1, 1)
 
-    fresh = sorted(movies, key=parse_date, reverse=True)[:10]
+    fresh = sorted(
+        [m for m in movies if m.get("id") not in used_ids],
+        key=parse_date,
+        reverse=True
+    )[:10]
+
+    used_ids.update(m.get("id") for m in fresh)
+
+    # ⭐ Pop/Original (remaining movies)
+    pop_original = sorted(
+        [m for m in movies if m.get("id") not in used_ids],
+        key=lambda x: (x.get("popularity", 0), x.get("vote_average", 0)),
+        reverse=True
+    )[:10]
 
     return {
         "source": "cache_only",
         "data": {
             "top_10_today": top_today,
             "hot_right_now": hot_now,
-            "fresh_releases": fresh
+            "fresh_releases": fresh,
+            "pop_original": pop_original
         }
     }
-
 
 @router.get("/movies/all")
 async def get_all_movies_from_cache():
