@@ -1,35 +1,7 @@
-# from fastapi import APIRouter
-# import httpx
 
-# router = APIRouter()
-
-# TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhNGE2NTNkZDdjOTE2MjgwMTg0NTNiZWRjMDBhOWI2ZCIsIm5iZiI6MTc3NDQ0NzAyNC4wNzgsInN1YiI6IjY5YzNlOWIwZTAzYzY2OTliOTZhYzQxNyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.LpUiFi1j_JrtP8AuuuXxGigR3YMSzNlTDZmNH14_ZB8"  # यहाँ अपना token डालो
-
-# headers = {
-#     "Authorization": f"Bearer {TMDB_TOKEN}"
-# }
-
-# @router.get("/movies")
-# async def get_movies():
-
-#     all_movies = []
-
-#     async with httpx.AsyncClient() as client:
-
-#         for page in range(1, 11):  # 👈 page 1 to 10
-#             url = f"https://api.themoviedb.org/3/movie/popular?page={page}"
-
-#             res = await client.get(url, headers=headers)
-#             data = res.json()
-
-#             all_movies.extend(data.get("results", []))
-
-#     return {
-#         "total_movies": len(all_movies),
-#         "results": all_movies
-#     }
-
+import datetime
 import json
+import random
 
 from app.services.cache import get_cache, set_cache
 from fastapi import APIRouter
@@ -92,24 +64,8 @@ async def get_movies():
     }
 
 
-# @router.get("/movies")
-# async def get_movies():
 
-#     async with httpx.AsyncClient(headers=headers, timeout=20.0) as client:
 
-#         # ⚡ parallel calls (IMPORTANT FIX)
-#         tasks = [fetch_page(client, page) for page in range(1, 11)]
-#         results = await asyncio.gather(*tasks)
-
-#     # merge data
-#     all_movies = []
-#     for r in results:
-#         all_movies.extend(r)
-
-#     return {
-#         "total_movies": len(all_movies),
-#         "results": all_movies
-#     }
 # @router.get("/homepage")
 # async def homepage():
 
@@ -118,7 +74,6 @@ async def get_movies():
 #     if not cached:
 #         return {"error": "No cached data found"}
 
-#     # 🔥 FIX HERE
 #     if isinstance(cached, str):
 #         data = json.loads(cached)
 #     else:
@@ -126,15 +81,25 @@ async def get_movies():
 
 #     movies = data.get("results", [])
 
+#     used_ids = set()
+
 #     # 🔝 Top 10 Today
-#     top_today = sorted(movies, key=lambda x: x.get("popularity", 0), reverse=True)[:10]
+#     top_today = sorted(
+#         [m for m in movies if m.get("id") not in used_ids],
+#         key=lambda x: x.get("popularity", 0),
+#         reverse=True
+#     )[:10]
+
+#     used_ids.update(m.get("id") for m in top_today)
 
 #     # 🔥 Hot
 #     hot_now = sorted(
-#         movies,
+#         [m for m in movies if m.get("id") not in used_ids],
 #         key=lambda x: (x.get("vote_average", 0), x.get("vote_count", 0)),
 #         reverse=True
 #     )[:10]
+
+#     used_ids.update(m.get("id") for m in hot_now)
 
 #     # ✨ Fresh
 #     from datetime import datetime
@@ -145,14 +110,28 @@ async def get_movies():
 #         except:
 #             return datetime(1900, 1, 1)
 
-#     fresh = sorted(movies, key=parse_date, reverse=True)[:10]
+#     fresh = sorted(
+#         [m for m in movies if m.get("id") not in used_ids],
+#         key=parse_date,
+#         reverse=True
+#     )[:10]
+
+#     used_ids.update(m.get("id") for m in fresh)
+
+#     # ⭐ Pop/Original (remaining movies)
+#     pop_original = sorted(
+#         [m for m in movies if m.get("id") not in used_ids],
+#         key=lambda x: (x.get("popularity", 0), x.get("vote_average", 0)),
+#         reverse=True
+#     )[:10]
 
 #     return {
 #         "source": "cache_only",
 #         "data": {
 #             "top_10_today": top_today,
 #             "hot_right_now": hot_now,
-#             "fresh_releases": fresh
+#             "fresh_releases": fresh,
+#             "pop_original": pop_original
 #         }
 #     }
 
@@ -171,25 +150,28 @@ async def homepage():
 
     movies = data.get("results", [])
 
+    if not movies:
+        return {"error": "No movies available"}
+
     used_ids = set()
 
-    # 🔝 Top 10 Today
+    # 🔝 Top Today
     top_today = sorted(
         [m for m in movies if m.get("id") not in used_ids],
         key=lambda x: x.get("popularity", 0),
         reverse=True
     )[:10]
 
-    used_ids.update(m.get("id") for m in top_today)
+    used_ids.update(m["id"] for m in top_today)
 
-    # 🔥 Hot
+    # 🔥 Hot Now
     hot_now = sorted(
         [m for m in movies if m.get("id") not in used_ids],
         key=lambda x: (x.get("vote_average", 0), x.get("vote_count", 0)),
         reverse=True
     )[:10]
 
-    used_ids.update(m.get("id") for m in hot_now)
+    used_ids.update(m["id"] for m in hot_now)
 
     # ✨ Fresh
     from datetime import datetime
@@ -206,24 +188,62 @@ async def homepage():
         reverse=True
     )[:10]
 
-    used_ids.update(m.get("id") for m in fresh)
+    used_ids.update(m["id"] for m in fresh)
 
-    # ⭐ Pop/Original (remaining movies)
+    # ⭐ Pop Original
     pop_original = sorted(
         [m for m in movies if m.get("id") not in used_ids],
         key=lambda x: (x.get("popularity", 0), x.get("vote_average", 0)),
         reverse=True
     )[:10]
 
+    # 🎬 Trailer (24h cached)
+    import random
+    from datetime import datetime
+
+    today_key = datetime.now().strftime("%Y-%m-%d")
+    trailer_cache = get_cache("daily_trailer")
+
+    if trailer_cache:
+        if isinstance(trailer_cache, str):
+            trailer_cache = json.loads(trailer_cache)
+
+        if trailer_cache.get("date") == today_key:
+            trailer_movie = trailer_cache.get("movie")
+        else:
+            trailer_movie = random.choice(movies)
+            set_cache("daily_trailer", json.dumps({
+                "date": today_key,
+                "movie": trailer_movie
+            }), 86400)
+    else:
+        trailer_movie = random.choice(movies)
+        set_cache("daily_trailer", json.dumps({
+            "date": today_key,
+            "movie": trailer_movie
+        }), 86400)
+
+    # 🎯 BANNERS (5 each, no duplicates)
+    banner1 = top_today[:5]
+    banner2 = hot_now[:5]
+    banner3 = fresh[:5]
+
     return {
         "source": "cache_only",
         "data": {
+            "trailer": trailer_movie,
+
+            "banner_top_today": banner1,
+            "banner_hot": banner2,
+            "banner_fresh": banner3,
+
             "top_10_today": top_today,
             "hot_right_now": hot_now,
             "fresh_releases": fresh,
             "pop_original": pop_original
         }
     }
+
 
 @router.get("/movies/all")
 async def get_all_movies_from_cache():
@@ -244,3 +264,31 @@ async def get_all_movies_from_cache():
         "total_movies": data.get("total_movies", 0),
         "results": data.get("results", [])
     }
+
+
+
+def get_daily_trailer(movies):
+    today_key = datetime.now().strftime("%Y-%m-%d")
+
+    cached = get_cache("daily_trailer")
+
+    if cached:
+        if isinstance(cached, str):
+            cached = json.loads(cached)
+
+        # if already today's trailer → return
+        if cached.get("date") == today_key:
+            return cached.get("movie")
+
+    # 🔥 pick random movie
+    movie = random.choice(movies)
+
+    trailer_data = {
+        "date": today_key,
+        "movie": movie
+    }
+
+    # save for 24h
+    set_cache("daily_trailer", json.dumps(trailer_data), 86400)
+
+    return movie
