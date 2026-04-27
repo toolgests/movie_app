@@ -173,9 +173,7 @@ async def homepage():
 
     used_ids.update(m["id"] for m in hot_now)
 
-    # ✨ Fresh
-    from datetime import datetime
-
+    # ✨ Fresh Releases
     def parse_date(movie):
         try:
             return datetime.strptime(movie.get("release_date", "1900-01-01"), "%Y-%m-%d")
@@ -197,10 +195,7 @@ async def homepage():
         reverse=True
     )[:10]
 
-    # 🎬 Trailer (24h cached)
-    import random
-    from datetime import datetime
-
+    # 🎬 Trailer (24h cache)
     today_key = datetime.now().strftime("%Y-%m-%d")
     trailer_cache = get_cache("daily_trailer")
 
@@ -223,11 +218,43 @@ async def homepage():
             "movie": trailer_movie
         }), 86400)
 
-    # 🎯 BANNERS (5 each, no duplicates)
-    banner1 = top_today[:5]
-    banner2 = hot_now[:5]
-    banner3 = fresh[:5]
+    # 🎯 IMAGE BASES (DIFFERENT FOR EACH SECTION)
+    IMAGE_TOP = "https://image.tmdb.org/t/p/original"  # HD banner
+    IMAGE_HOT = "https://image.tmdb.org/t/p/w780"      # medium
+    IMAGE_FRESH = "https://image.tmdb.org/t/p/w500"    # smaller
 
+    # 🎯 BANNER BUILDER
+    def build_banner(source_list, image_base, limit=5):
+        banner = []
+        local_used = set()
+
+        for m in source_list:
+            if m.get("id") in local_used:
+                continue
+
+            # fallback if backdrop missing
+            path = m.get("backdrop_path") or m.get("poster_path")
+            if not path:
+                continue
+
+            banner.append({
+                "image": image_base + path,
+                "movie": m
+            })
+
+            local_used.add(m.get("id"))
+
+            if len(banner) == limit:
+                break
+
+        return banner
+
+    # 🎯 BUILD BANNERS
+    banner1 = build_banner(top_today, IMAGE_TOP)
+    banner2 = build_banner(hot_now, IMAGE_HOT)
+    banner3 = build_banner(fresh, IMAGE_FRESH)
+
+    # 🚀 FINAL RESPONSE
     return {
         "source": "cache_only",
         "data": {
@@ -243,7 +270,6 @@ async def homepage():
             "pop_original": pop_original
         }
     }
-
 
 @router.get("/movies/all")
 async def get_all_movies_from_cache():
