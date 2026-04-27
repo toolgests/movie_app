@@ -113,28 +113,29 @@ async def homepage():
 
     # 🎯 Banner Builder
     def build_banner(source_list, image_base, limit=5):
-        banner = []
-        local_used = set()
+        movies_list = []
+        banner_image = None
 
         for m in source_list:
-            if m.get("id") in local_used:
-                continue
-
             path = m.get("backdrop_path") or m.get("poster_path")
             if not path:
                 continue
 
-            banner.append({
-                "image": image_base + path,
-                "movie": m
-            })
+            # set banner image only once (first valid movie)
+            if not banner_image:
+                banner_image = image_base + path
 
-            local_used.add(m.get("id"))
+            movies_list.append(m)
 
-            if len(banner) == limit:
+            if len(movies_list) == limit:
                 break
 
-        return banner
+        # return in your required format
+        return {
+            "image": banner_image,
+            "movies": movies_list
+        }
+
 
     banner1 = build_banner(top_today, IMAGE_TOP)
     banner2 = build_banner(hot_now, IMAGE_HOT)
