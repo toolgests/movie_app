@@ -176,15 +176,16 @@ async def homepage():
     # ✨ Fresh Releases
     def parse_date(movie):
         try:
-            return datetime.strptime(movie.get("release_date", "1900-01-01"), "%Y-%m-%d")
+            return datetime.strptime(movie.get("release_date", ""), "%Y-%m-%d")
         except:
             return datetime(1900, 1, 1)
 
     fresh = sorted(
-        [m for m in movies if m.get("id") not in used_ids],
-        key=parse_date,
-        reverse=True
-    )[:10]
+            [m for m in movies if m.get("id") not in used_ids],
+            key=parse_date,
+            reverse=True
+        )[:10]
+
 
     used_ids.update(m["id"] for m in fresh)
 
