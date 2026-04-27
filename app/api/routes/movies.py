@@ -135,142 +135,142 @@ async def get_movies():
 #         }
 #     }
 
-@router.get("/homepage")
-async def homepage():
+# @router.get("/homepage")
+# async def homepage():
 
-    cached = get_cache("movies_home")
+#     cached = get_cache("movies_home")
 
-    if not cached:
-        return {"error": "No cached data found"}
+#     if not cached:
+#         return {"error": "No cached data found"}
 
-    if isinstance(cached, str):
-        data = json.loads(cached)
-    else:
-        data = cached
+#     if isinstance(cached, str):
+#         data = json.loads(cached)
+#     else:
+#         data = cached
 
-    movies = data.get("results", [])
+#     movies = data.get("results", [])
 
-    if not movies:
-        return {"error": "No movies available"}
+#     if not movies:
+#         return {"error": "No movies available"}
 
-    used_ids = set()
+#     used_ids = set()
 
-    # 🔝 Top Today
-    top_today = sorted(
-        [m for m in movies if m.get("id") not in used_ids],
-        key=lambda x: x.get("popularity", 0),
-        reverse=True
-    )[:10]
+#     # 🔝 Top Today
+#     top_today = sorted(
+#         [m for m in movies if m.get("id") not in used_ids],
+#         key=lambda x: x.get("popularity", 0),
+#         reverse=True
+#     )[:10]
 
-    used_ids.update(m["id"] for m in top_today)
+#     used_ids.update(m["id"] for m in top_today)
 
-    # 🔥 Hot Now
-    hot_now = sorted(
-        [m for m in movies if m.get("id") not in used_ids],
-        key=lambda x: (x.get("vote_average", 0), x.get("vote_count", 0)),
-        reverse=True
-    )[:10]
+#     # 🔥 Hot Now
+#     hot_now = sorted(
+#         [m for m in movies if m.get("id") not in used_ids],
+#         key=lambda x: (x.get("vote_average", 0), x.get("vote_count", 0)),
+#         reverse=True
+#     )[:10]
 
-    used_ids.update(m["id"] for m in hot_now)
+#     used_ids.update(m["id"] for m in hot_now)
 
-    # ✨ Fresh Releases
-    def parse_date(movie):
-        try:
-            return datetime.strptime(movie.get("release_date", ""), "%Y-%m-%d")
-        except:
-            return datetime(1900, 1, 1)
+#     # ✨ Fresh Releases
+#     def parse_date(movie):
+#         try:
+#             return datetime.strptime(movie.get("release_date", ""), "%Y-%m-%d")
+#         except:
+#             return datetime(1900, 1, 1)
 
-    fresh = sorted(
-            [m for m in movies if m.get("id") not in used_ids],
-            key=parse_date,
-            reverse=True
-        )[:10]
+#     fresh = sorted(
+#             [m for m in movies if m.get("id") not in used_ids],
+#             key=parse_date,
+#             reverse=True
+#         )[:10]
 
 
-    used_ids.update(m["id"] for m in fresh)
+#     used_ids.update(m["id"] for m in fresh)
 
-    # ⭐ Pop Original
-    pop_original = sorted(
-        [m for m in movies if m.get("id") not in used_ids],
-        key=lambda x: (x.get("popularity", 0), x.get("vote_average", 0)),
-        reverse=True
-    )[:10]
+#     # ⭐ Pop Original
+#     pop_original = sorted(
+#         [m for m in movies if m.get("id") not in used_ids],
+#         key=lambda x: (x.get("popularity", 0), x.get("vote_average", 0)),
+#         reverse=True
+#     )[:10]
 
-    # 🎬 Trailer (24h cache)
-    today_key = datetime.now().strftime("%Y-%m-%d")
-    trailer_cache = get_cache("daily_trailer")
+#     # 🎬 Trailer (24h cache)
+#     today_key = datetime.now().strftime("%Y-%m-%d")
+#     trailer_cache = get_cache("daily_trailer")
 
-    if trailer_cache:
-        if isinstance(trailer_cache, str):
-            trailer_cache = json.loads(trailer_cache)
+#     if trailer_cache:
+#         if isinstance(trailer_cache, str):
+#             trailer_cache = json.loads(trailer_cache)
 
-        if trailer_cache.get("date") == today_key:
-            trailer_movie = trailer_cache.get("movie")
-        else:
-            trailer_movie = random.choice(movies)
-            set_cache("daily_trailer", json.dumps({
-                "date": today_key,
-                "movie": trailer_movie
-            }), 86400)
-    else:
-        trailer_movie = random.choice(movies)
-        set_cache("daily_trailer", json.dumps({
-            "date": today_key,
-            "movie": trailer_movie
-        }), 86400)
+#         if trailer_cache.get("date") == today_key:
+#             trailer_movie = trailer_cache.get("movie")
+#         else:
+#             trailer_movie = random.choice(movies)
+#             set_cache("daily_trailer", json.dumps({
+#                 "date": today_key,
+#                 "movie": trailer_movie
+#             }), 86400)
+#     else:
+#         trailer_movie = random.choice(movies)
+#         set_cache("daily_trailer", json.dumps({
+#             "date": today_key,
+#             "movie": trailer_movie
+#         }), 86400)
 
-    # 🎯 IMAGE BASES (DIFFERENT FOR EACH SECTION)
-    IMAGE_TOP = "https://image.tmdb.org/t/p/original"  # HD banner
-    IMAGE_HOT = "https://image.tmdb.org/t/p/w780"      # medium
-    IMAGE_FRESH = "https://image.tmdb.org/t/p/w500"    # smaller
+#     # 🎯 IMAGE BASES (DIFFERENT FOR EACH SECTION)
+#     IMAGE_TOP = "https://image.tmdb.org/t/p/original"  # HD banner
+#     IMAGE_HOT = "https://image.tmdb.org/t/p/w780"      # medium
+#     IMAGE_FRESH = "https://image.tmdb.org/t/p/w500"    # smaller
 
-    # 🎯 BANNER BUILDER
-    def build_banner(source_list, image_base, limit=5):
-        banner = []
-        local_used = set()
+#     # 🎯 BANNER BUILDER
+#     def build_banner(source_list, image_base, limit=5):
+#         banner = []
+#         local_used = set()
 
-        for m in source_list:
-            if m.get("id") in local_used:
-                continue
+#         for m in source_list:
+#             if m.get("id") in local_used:
+#                 continue
 
-            # fallback if backdrop missing
-            path = m.get("backdrop_path") or m.get("poster_path")
-            if not path:
-                continue
+#             # fallback if backdrop missing
+#             path = m.get("backdrop_path") or m.get("poster_path")
+#             if not path:
+#                 continue
 
-            banner.append({
-                "image": image_base + path,
-                "movie": m
-            })
+#             banner.append({
+#                 "image": image_base + path,
+#                 "movie": m
+#             })
 
-            local_used.add(m.get("id"))
+#             local_used.add(m.get("id"))
 
-            if len(banner) == limit:
-                break
+#             if len(banner) == limit:
+#                 break
 
-        return banner
+#         return banner
 
-    # 🎯 BUILD BANNERS
-    banner1 = build_banner(top_today, IMAGE_TOP)
-    banner2 = build_banner(hot_now, IMAGE_HOT)
-    banner3 = build_banner(fresh, IMAGE_FRESH)
+#     # 🎯 BUILD BANNERS
+#     banner1 = build_banner(top_today, IMAGE_TOP)
+#     banner2 = build_banner(hot_now, IMAGE_HOT)
+#     banner3 = build_banner(fresh, IMAGE_FRESH)
 
-    # 🚀 FINAL RESPONSE
-    return {
-        "source": "cache_only",
-        "data": {
-            "trailer": trailer_movie,
+#     # 🚀 FINAL RESPONSE
+#     return {
+#         "source": "cache_only",
+#         "data": {
+#             "trailer": trailer_movie,
 
-            "banner_top_today": banner1,
-            "banner_hot": banner2,
-            "banner_fresh": banner3,
+#             "banner_top_today": banner1,
+#             "banner_hot": banner2,
+#             "banner_fresh": banner3,
 
-            "top_10_today": top_today,
-            "hot_right_now": hot_now,
-            "fresh_releases": fresh,
-            "pop_original": pop_original
-        }
-    }
+#             "top_10_today": top_today,
+#             "hot_right_now": hot_now,
+#             "fresh_releases": fresh,
+#             "pop_original": pop_original
+#         }
+#     }
 
 @router.get("/movies/all")
 async def get_all_movies_from_cache():
